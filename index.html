@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teile-Organizer</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --muted:#6b7280; --accent:#2563eb;
+      --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:var(--bg);color:#111}
+    header{background:linear-gradient(90deg,#111827 0%, #1f2937 100%);color:#fff;padding:18px 24px}
+    .container{max-width:1000px;margin:22px auto;padding:16px}
+    .card{background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(16,24,40,.06);padding:16px;margin-bottom:16px}
+    h1{margin:0;font-size:20px}
+    form{display:grid;grid-template-columns:1fr 220px 120px;gap:10px;align-items:end}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="text"], select, textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px}
+    textarea{min-height:60px;resize:vertical}
+    button{background:var(--accent);color:#fff;padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid #dbeafe}
+    .controls{display:flex;gap:8px}
+    .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .items{display:grid;gap:8px}
+    .item{padding:12px;border-radius:10px;border:1px solid #eef2ff;display:flex;justify-content:space-between;align-items:flex-start}
+    .meta{font-size:12px;color:var(--muted)}
+    .badge{background:#f1f5f9;padding:6px 8px;border-radius:999px;font-size:13px}
+    .small{font-size:13px}
+    .danger{background:transparent;border:1px solid #fee2e2;color:var(--danger)}
+    .flex{display:flex;gap:8px;align-items:center}
+    @media (max-width:800px){
+      form{grid-template-columns:1fr;align-items:stretch}
+    }
+    .top-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .muted{color:var(--muted)}
+    footer{padding:12px;text-align:center;color:var(--muted);font-size:13px}
+    .github-sync{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .small-input{padding:8px;border-radius:8px;border:1px solid #e6e9ef}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Teile-Organizer</h1>
+      <div class="muted">Schnell Teile & Orte speichern — Vorschläge wiederverwenden — lokal persistent</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card" aria-labelledby="add-title">
+      <h2 id="add-title">Neues Teil anlegen</h2>
+      <form id="addForm">
+        <div>
+          <label for="partInput">Teil</label>
+          <input id="partInput" list="partsList" placeholder="z.B. Steckerleiste" autocomplete="off" required />
+          <datalist id="partsList"></datalist>
+        </div>
+
+        <div>
+          <label for="placeInput">Ort</label>
+          <input id="placeInput" list="placesList" placeholder="z.B. Keller, Regal A" autocomplete="off" required />
+          <datalist id="placesList"></datalist>
+        </div>
+
+        <div>
+          <label for="noteInput">Notiz (optional)</label>
+          <textarea id="noteInput" placeholder="z.B. 3m Kabel, funktioniert"></textarea>
+        </div>
+
+        <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+          <div class="controls">
+            <button type="submit">Speichern</button>
+            <button type="button" id="clearBtn" class="ghost">Form zurücksetzen</button>
+          </div>
+        </div>
+      </form>
+
+      <div style="margin-top:12px" class="top-row">
+        <div class="muted small">Automatische lokale Speicherung (IndexedDB). Du kannst zusätzlich exportieren oder zu GitHub synchronisieren.</div>
+      </div>
+
+      <div style="margin-top:12px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="exportBtn" class="ghost">Export (JSON)</button>
+          <input id="importFile" type="file" accept="application/json" style="display:none" />
+          <button id="importBtn" class="ghost">Import (JSON)</button>
+          <button id="clearAllBtn" class="danger">Alle Einträge löschen</button>
+        </div>
+
+        <details style="margin-top:10px" id="syncDetails">
+          <summary style="cursor:pointer">Optional: GitHub Sync (einmalig konfigurieren)</summary>
+          <div style="margin-top:10px">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:6px">
+              Diese Option schreibt eine Datei (z. B. <code>db/parts.json</code>) in dein GitHub-Repository.
+              Du brauchst ein <strong>Personal Access Token</strong> mit Scope <code>repo</code> (privat) oder <code>public_repo</code> (öffentlich).
+            </div>
+            <div class="github-sync">
+              <input id="ghOwner" class="small-input" placeholder="owner (z. B. username)" />
+              <input id="ghRepo" class="small-input" placeholder="repo (z. B. my-repo)" />
+              <input id="ghPath" class="small-input" placeholder="path (z. B. db/parts.json)" />
+              <input id="ghToken" class="small-input" placeholder="Token (nicht sicher im Browser!)" />
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px">
+              <button id="syncBtn">Sync zu GitHub (push)</button>
+              <button id="pullBtn" class="ghost">Von GitHub laden (pull)</button>
+            </div>
+            <div id="syncMsg" class="muted small" style="margin-top:8px"></div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="list-title">
+      <div class="list-header">
+        <h2 id="list-title">Gespeicherte Teile</h2>
+        <div class="flex">
+          <input id="searchInput" placeholder="Suchen..." class="small-input" />
+          <select id="filterPlace" class="small-input">
+            <option value="">Alle Orte</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="items" id="items"></div>
+    </section>
+  </main>
+
+  <footer>
+    <small>Erstellt — Teile-Organizer • Lokale Speicherung mit IndexedDB • Optional: GitHub Sync</small>
+  </footer>
+
+  <script>
+  // ----- Simple IndexedDB wrapper -----
+  const dbName = 'teile-organizer-v1';
+  const DB = {
+    db: null,
+    async init(){
+      if(this.db) return;
+      this.db = await new Promise((resolve, reject) => {
+        const r = indexedDB.open(dbName, 1);
+        r.onupgradeneeded = e => {
+          const db = e.target.result;
+          if(!db.objectStoreNames.contains('entries')) {
+            const st = db.createObjectStore('entries', {keyPath: 'id'});
+            st.createIndex('byPart', 'part', {unique:false});
+            st.createIndex('byPlace', 'place', {unique:false});
+          }
+          if(!db.objectStoreNames.contains('parts')) db.createObjectStore('parts', {keyPath: 'name'});
+          if(!db.objectStoreNames.contains('places')) db.createObjectStore('places', {keyPath: 'name'});
+        };
+        r.onsuccess = e => resolve(e.target.result);
+        r.onerror = e => reject(e.target.error);
+      });
+    },
+    tx(store, mode='readonly') {
+      const t = this.db.transaction(store, mode);
+      return t.objectStore(store);
+    },
+    async put(store, value){
+      await this.init();
+      return new Promise((res, rej) => {
+        const req = this.tx(store, 'readwrite').put(value);
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    },
+    async getAll(store){
+      await this.init();
+      return new Promise((res, rej) => {
+        const req = this.tx(store).getAll();
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    },
+    async get(store, key){
+      await this.init();
+      return new Promise((res, rej) => {
+        const req = this.tx(store).get(key);
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+    },
+    async delete(store, key){
+      await this.init();
+      return new Promise((res, rej) => {
+        const req = this.tx(store, 'readwrite').delete(key);
+        req.onsuccess = () => res();
+        req.onerror = () => rej(req.error);
+      });
+    },
+    async clear(store){
+      await this.init();
+      return new Promise((res, rej) => {
+        const req = this.tx(store, 'readwrite').clear();
+        req.onsuccess = () => res();
+        req.onerror = () => rej(req.error);
+      });
+    }
+  };
+
+  // ----- UI helpers -----
+  const qs = (s) => document.querySelector(s);
+  const partsList = qs('#partsList');
+  const placesList = qs('#placesList');
+  const addForm = qs('#addForm');
+  const partInput = qs('#partInput');
+  const placeInput = qs('#placeInput');
+  const noteInput = qs('#noteInput');
+  const itemsNode = qs('#items');
+  const searchInput = qs('#searchInput');
+  const filterPlace = qs('#filterPlace');
+  const exportBtn = qs('#exportBtn');
+  const importBtn = qs('#importBtn');
+  const importFile = qs('#importFile');
+  const clearAllBtn = qs('#clearAllBtn');
+  const clearBtn = qs('#clearBtn');
+
+  // GitHub UI
+  const ghOwner = qs('#ghOwner'), ghRepo = qs('#ghRepo'), ghPath = qs('#ghPath'), ghToken = qs('#ghToken');
+  const syncBtn = qs('#syncBtn'), pullBtn = qs('#pullBtn'), syncMsg = qs('#syncMsg');
+
+  // ----- Core logic -----
+  function uid(){ return 'id-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8) }
+
+  async function addEntry(e){
+    if(e) e.preventDefault();
+    const part = partInput.value.trim();
+    const place = placeInput.value.trim();
+    const note = noteInput.value.trim();
+    if(!part || !place) return alert('Teil und Ort sind Pflichtfelder.');
+    const entry = { id: uid(), part, place, note, createdAt: new Date().toISOString() };
+    await DB.put('entries', entry);
+
+    // ensure parts/places suggestion lists are saved
+    await DB.put('parts', { name: part });
+    await DB.put('places', { name: place });
+
+    partInput.value = '';
+    noteInput.value = '';
+    renderAll();
+  }
+
+  async function renderAll(){
+    const all = await DB.getAll('entries');
+    const parts = await DB.getAll('parts');
+    const places = await DB.getAll('places');
+
+    // render datalists
+    partsList.innerHTML = parts.map(p=>`<option value="${escapeHtml(p.name)}">`).join('');
+    placesList.innerHTML = places.map(p=>`<option value="${escapeHtml(p.name)}">`).join('');
+
+    // render filter select
+    const current = filterPlace.value || '';
+    filterPlace.innerHTML = '<option value="">Alle Orte</option>' + places.map(p=>`<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`).join('');
+    filterPlace.value = current;
+
+    // render items
+    const q = searchInput.value.trim().toLowerCase();
+    const placeFilter = filterPlace.value;
+    const filtered = all.filter(it=>{
+      return (!placeFilter || it.place === placeFilter)
+        && (!q || (it.part + ' ' + it.place + ' ' + (it.note||'')).toLowerCase().includes(q));
+    }).sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+
+    itemsNode.innerHTML = filtered.map(it => `
+      <div class="item" data-id="${it.id}">
+        <div>
+          <div style="font-weight:600">${escapeHtml(it.part)}</div>
+          <div class="meta">${escapeHtml(it.place)} • ${new Date(it.createdAt).toLocaleString()}</div>
+          ${it.note ? `<div style="margin-top:6px" class="small">${escapeHtml(it.note)}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <div class="badge small">${escapeHtml(it.id.slice(-6))}</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="editEntry('${it.id}')">Bearbeiten</button>
+            <button onclick="deleteEntry('${it.id}')" class="ghost">Löschen</button>
+          </div>
+        </div>
+      </div>
+    `).join('') || '<div class="muted small">Keine Einträge</div>';
+  }
+
+  // helpers exposed for onclick inline
+  window.editEntry = async function(id){
+    const e = await DB.get('entries', id);
+    if(!e) return alert('Eintrag nicht gefunden');
+    // simple edit modal using prompt (keeps code compact)
+    const newPart = prompt('Teil', e.part);
+    if(newPart === null) return;
+    const newPlace = prompt('Ort', e.place);
+    if(newPlace === null) return;
+    const newNote = prompt('Notiz (leer = entfernen)', e.note || '');
+    e.part = newPart.trim() || e.part;
+    e.place = newPlace.trim() || e.place;
+    e.note = (newNote === null ? e.note : newNote.trim());
+    await DB.put('entries', e);
+    await DB.put('parts', { name: e.part });
+    await DB.put('places', { name: e.place });
+    renderAll();
+  };
+
+  window.deleteEntry = async function(id){
+    if(!confirm('Eintrag löschen?')) return;
+    await DB.delete('entries', id);
+    renderAll();
+  };
+
+  // ----- Export / Import -----
+  exportBtn.addEventListener('click', async ()=>{
+    const entries = await DB.getAll('entries');
+    const parts = await DB.getAll('parts');
+    const places = await DB.getAll('places');
+    const payload = { meta: { exportedAt: new Date().toISOString() }, entries, parts, places };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'teile-organizer-export.json'; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener('click', ()=> importFile.click());
+  importFile.addEventListener('change', async (ev)=>{
+    const file = ev.target.files[0];
+    if(!file) return;
+    const text = await file.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e){ return alert('Ungültige JSON-Datei.'); }
+    if(!data.entries) return alert('Keine Einträge gefunden.');
+    // merge entries (create new ids to avoid collisions)
+    for(const e of data.entries){
+      const obj = { id: uid(), part: e.part, place: e.place, note: e.note || '', createdAt: e.createdAt || new Date().toISOString() };
+      await DB.put('entries', obj);
+    }
+    // merge parts/places
+    if(Array.isArray(data.parts)) for(const p of data.parts) if(p.name) await DB.put('parts', {name:p.name});
+    if(Array.isArray(data.places)) for(const p of data.places) if(p.name) await DB.put('places', {name:p.name});
+    renderAll();
+    importFile.value = '';
+    alert('Import abgeschlossen.');
+  });
+
+  clearAllBtn.addEventListener('click', async ()=>{
+    if(!confirm('Alle Einträge endgültig löschen?')) return;
+    await DB.clear('entries');
+    renderAll();
+  });
+
+  clearBtn.addEventListener('click', ()=> addForm.reset());
+
+  // search/filter wiring
+  searchInput.addEventListener('input', renderAll);
+  filterPlace.addEventListener('change', renderAll);
+
+  // form submit
+  addForm.addEventListener('submit', addEntry);
+
+  // escape helper
+  function escapeHtml(s){ return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }
+
+  // ----- GitHub sync (optional) -----
+  // WARNING: storing tokens in the browser is insecure. Recommended: use a server-side approach.
+  async function ghApiRequest(method, owner, repo, path, token, body){
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}`;
+    const headers = { Authorization: 'token ' + token, Accept: 'application/vnd.github+json' };
+    const opts = { method, headers };
+    if(body) opts.body = JSON.stringify(body);
+    const r = await fetch(url, opts);
+    if(!r.ok) {
+      const txt = await r.text();
+      throw new Error(`GitHub API Fehler (${r.status}): ${txt}`);
+    }
+    return r.json();
+  }
+
+  syncBtn.addEventListener('click', async ()=>{
+    syncMsg.textContent = '';
+    const owner = ghOwner.value.trim(), repo = ghRepo.value.trim(), path = ghPath.value.trim(), token = ghToken.value.trim();
+    if(!owner || !repo || !path || !token) return alert('Bitte owner, repo, path und token angeben.');
+    try{
+      const entries = await DB.getAll('entries');
+      const parts = await DB.getAll('parts');
+      const places = await DB.getAll('places');
+      const content = JSON.stringify({ entries, parts, places, exportedAt: new Date().toISOString() }, null, 2);
+      const b64 = btoa(unescape(encodeURIComponent(content)));
+
+      // try to get existing file to obtain sha
+      let sha = null;
+      try{
+        const existing = await ghApiRequest('GET', owner, repo, path, token);
+        sha = existing.sha;
+      }catch(e){
+        // if 404, we'll create; else rethrow
+        if(!/404/.test(e.message)) { throw e; }
+      }
+
+      const payload = { message: `Update parts db (${new Date().toISOString()})`, content: b64 };
+      if(sha) payload.sha = sha;
+      await ghApiRequest('PUT', owner, repo, path, token, payload);
+      syncMsg.textContent = 'Erfolgreich zu GitHub gepusht.';
+    }catch(e){
+      console.error(e);
+      syncMsg.textContent = 'Fehler: ' + (e.message || e);
+      alert('GitHub Sync fehlgeschlagen: ' + e.message);
+    }
+  });
+
+  pullBtn.addEventListener('click', async ()=>{
+    syncMsg.textContent = '';
+    const owner = ghOwner.value.trim(), repo = ghRepo.value.trim(), path = ghPath.value.trim(), token = ghToken.value.trim();
+    if(!owner || !repo || !path || !token) return alert('Bitte owner, repo, path und token angeben.');
+    try{
+      const file = await ghApiRequest('GET', owner, repo, path, token);
+      const content = file.content;
+      const txt = decodeURIComponent(escape(atob(content.replace(/\n/g,''))));
+      const data = JSON.parse(txt);
+      if(data.entries) {
+        // merge
+        for(const e of data.entries){
+          const obj = { id: uid(), part: e.part, place: e.place, note: e.note || '', createdAt: e.createdAt || new Date().toISOString() };
+          await DB.put('entries', obj);
+        }
+      }
+      if(Array.isArray(data.parts)) for(const p of data.parts) if(p.name) await DB.put('parts', {name:p.name});
+      if(Array.isArray(data.places)) for(const p of data.places) if(p.name) await DB.put('places', {name:p.name});
+      renderAll();
+      syncMsg.textContent = 'Daten von GitHub geladen und lokal gemerged.';
+    }catch(e){
+      console.error(e);
+      syncMsg.textContent = 'Fehler: ' + (e.message || e);
+      alert('GitHub Pull fehlgeschlagen: ' + e.message);
+    }
+  });
+
+  // ----- Init -----
+  (async ()=>{
+    await DB.init();
+    renderAll();
+  })();
+  </script>
+
+</body>
+</html>
